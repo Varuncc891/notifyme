@@ -1,0 +1,7 @@
+{
+  "name": "notifyflow",
+  "private": true,
+  "scripts": {
+    "dev": "echo root"
+  }
+}
