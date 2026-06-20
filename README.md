@@ -1,4 +1,4 @@
-# ⚡ NotifyFlow – Event-Driven Notification System
+# NotifyFlow – Event-Driven Notification System
 
 ## Overview
 
@@ -233,31 +233,31 @@ pnpm dev
 
 ### Dashboard
 
-> INSERT DASHBOARD SCREENSHOT HERE
+![Dashboard](docs/screenshots/status.png)
 
 ---
 
 ### Notification Creation
 
-> INSERT NOTIFICATION CREATION SCREENSHOT HERE
+![Dashboard](docs/screenshots/create.png)
 
 ---
 
 ### Successful Delivery
 
-> INSERT SUCCESS SCREENSHOT HERE
+![Dashboard](docs/screenshots/success.png)
 
 ---
 
 ### Failed Notification
 
-> INSERT FAILED NOTIFICATION SCREENSHOT HERE
+![Dashboard](docs/screenshots/failed.png)
 
 ---
 
-### Metrics Dashboard
+### History Dashboard
 
-> INSERT METRICS SCREENSHOT HERE
+![Dashboard](docs/screenshots/history.png)
 
 ---
 
