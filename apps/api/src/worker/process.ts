@@ -1,8 +1,19 @@
 import { Job, UnrecoverableError } from "bullmq";
 import { prisma } from "../lib/prisma";
 import { logger } from "../lib/logger";
+import { config } from "../config";
 import { deliver } from "./deliver";
 import { classify } from "./classify";
+
+function summarizeError(error: unknown) {
+  const value = error && typeof error === "object" ? error as { name?: unknown; message?: unknown; code?: unknown; stack?: unknown } : {};
+  return {
+    name: typeof value.name === "string" ? value.name : "Error",
+    message: typeof value.message === "string" ? value.message : "Unknown error",
+    code: typeof value.code === "string" ? value.code : null,
+    ...(config.nodeEnv !== "production" && typeof value.stack === "string" ? { stack: value.stack } : {}),
+  };
+}
 
 export async function processNotification(job: Job<{ notificationId: string }>): Promise<void> {
   const { notificationId } = job.data;
@@ -17,7 +28,7 @@ export async function processNotification(job: Job<{ notificationId: string }>):
     log.info({ httpStatus: response.status }, "Webhook delivered");
   } catch (error) {
     const result = classify(error);
-    log.warn({ error, category: result.category, httpStatus: result.httpStatus }, "Webhook delivery failed");
+    log.warn({ category: result.category, httpStatus: result.httpStatus ?? null, errorSummary: summarizeError(error) }, "Webhook delivery failed");
     const madeNow = job.attemptsMade + 1;
     const isFinal = !result.retryable || madeNow >= (job.opts.attempts ?? 1);
     await prisma.notification.update({ where: { id: row.id }, data: { retries: madeNow, lastError: result.category, httpStatus: result.httpStatus ?? null, status: isFinal ? "FAILED" : "PROCESSING" } });
