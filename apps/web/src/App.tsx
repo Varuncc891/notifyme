@@ -1,24 +1,20 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const API_URL = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 interface Notification {
   id: string;
   url: string;
   status: string;
+  httpStatus: number | null;
   retries: number;
   lastError: string | null;
   createdAt: string;
 }
 
-interface Metrics {
-  active: number;
-  completed: number;
-  delayed: number;
-  failed: number;
-  waiting: number;
-}
+interface Metrics { queue: { waiting: number; active: number; delayed: number }; database: Record<"PENDING" | "PROCESSING" | "SUCCESS" | "FAILED", number> }
+interface PageResult { data: Notification[]; page: number; limit: number; total: number; totalPages: number }
 
 function getStatusColor(status: string) {
   switch (status) {
@@ -38,22 +34,21 @@ function App() {
   const [payload, setPayload] = useState('{ "message": "hello" }');
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [formError, setFormError] = useState("");
 
   const [metrics, setMetrics] = useState<Metrics>({
-    active: 0,
-    completed: 0,
-    delayed: 0,
-    failed: 0,
-    waiting: 0,
+    queue: { waiting: 0, active: 0, delayed: 0 },
+    database: { PENDING: 0, PROCESSING: 0, SUCCESS: 0, FAILED: 0 },
   });
 
   const fetchNotifications = async () => {
     try {
-      const response = await axios.get(
-        `${API_URL}/notifications`
-      );
-
-      setNotifications(response.data);
+      const response = await axios.get<PageResult>(`${API_URL}/notifications`, { params: { page, limit: 20, ...(statusFilter ? { status: statusFilter } : {}) } });
+      setNotifications(response.data.data);
+      setTotalPages(response.data.totalPages);
     } catch (error) {
       console.error(error);
     }
@@ -76,19 +71,22 @@ function App() {
       await axios.post(
         `${API_URL}/notifications`,
         {
+          type: "webhook",
           url,
           payload: JSON.parse(payload),
         }
       );
 
       setUrl("");
+      setFormError("");
 
       fetchNotifications();
       fetchMetrics();
 
     } catch (error) {
       console.error(error);
-      alert("Failed to create notification");
+      if (axios.isAxiosError(error) && error.response?.status === 400) setFormError(error.response.data?.message ?? "Invalid notification");
+      else setFormError("Failed to create notification");
     }
   };
 
@@ -102,7 +100,7 @@ function App() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [page, statusFilter]);
 
   return (
     <div
@@ -139,8 +137,8 @@ function App() {
             padding: "20px",
           }}
         >
-          <h3>Waiting</h3>
-          <h1>{metrics.waiting}</h1>
+        <h3>Queue · Waiting</h3>
+          <h1>{metrics.queue.waiting}</h1>
         </div>
 
         <div
@@ -152,7 +150,7 @@ function App() {
           }}
         >
           <h3>Active</h3>
-          <h1>{metrics.active}</h1>
+          <h3>Queue · Active</h3><h1>{metrics.queue.active}</h1>
         </div>
 
         <div
@@ -163,8 +161,8 @@ function App() {
             padding: "20px",
           }}
         >
-          <h3>Completed</h3>
-          <h1>{metrics.completed}</h1>
+          <h3>Queue · Delayed</h3>
+          <h1>{metrics.queue.delayed}</h1>
         </div>
 
         <div
@@ -176,8 +174,11 @@ function App() {
           }}
         >
           <h3>Failed</h3>
-          <h1>{metrics.failed}</h1>
+          <h3>Database · FAILED</h3><h1>{metrics.database.FAILED}</h1>
         </div>
+      </div>
+      <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+        {(["PENDING", "PROCESSING", "SUCCESS"] as const).map((status) => <div key={status} style={{ background: "#111", padding: 12, borderRadius: 8 }}>{status}: {metrics.database[status]}</div>)}
       </div>
 
       <div
@@ -237,6 +238,7 @@ function App() {
         >
           Create Notification
         </button>
+        {formError && <p role="alert" style={{ color: "#ef4444" }}>{formError}</p>}
       </div>
 
       <div
@@ -248,6 +250,7 @@ function App() {
         }}
       >
         <h2>Notifications</h2>
+        <label>Status filter <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">All</option><option>PENDING</option><option>PROCESSING</option><option>SUCCESS</option><option>FAILED</option></select></label>
 
         <table
           style={{
@@ -261,6 +264,7 @@ function App() {
               <th>Retries</th>
               <th>URL</th>
               <th>Error</th>
+              <th>HTTP</th>
               <th>Created</th>
             </tr>
           </thead>
@@ -291,6 +295,7 @@ function App() {
                 <td>
                   {notification.lastError ?? "-"}
                 </td>
+                <td>{notification.httpStatus ?? "-"}</td>
 
                 <td>
                   {new Date(
@@ -301,6 +306,11 @@ function App() {
             ))}
           </tbody>
         </table>
+        <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 16 }}>
+          <button disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>Prev</button>
+          <span>Page {page} of {totalPages}</span>
+          <button disabled={page >= totalPages} onClick={() => setPage((current) => current + 1)}>Next</button>
+        </div>
       </div>
     </div>
   );
