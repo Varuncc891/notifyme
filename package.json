@@ -1,7 +1,9 @@
 {
   "name": "notifyflow",
   "private": true,
+  "packageManager": "pnpm@10.34.1",
   "scripts": {
-    "dev": "echo root"
+    "dev": "echo root",
+    "build": "pnpm --filter api build && pnpm --filter web build"
   }
 }
