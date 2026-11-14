@@ -8,7 +8,7 @@ import notificationsRouter from "./routes/notifications";
 import metricsRouter from "./routes/metrics";
 
 const app = express();
-if (config.allowPrivateWebhookTargets && config.nodeEnv !== "production") logger.warn("ALLOW_PRIVATE_WEBHOOK_TARGETS is enabled: private webhook targets are allowed for development");
+if (config.allowPrivateWebhookTargets && config.nodeEnv !== "production") logger.warn({ setting: "ALLOW_PRIVATE_WEBHOOK_TARGETS" }, "Private webhook targets are allowed for development");
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 app.get("/health", (_req, res) => res.json({ status: "ok" }));

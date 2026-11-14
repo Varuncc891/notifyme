@@ -1,4 +1,4 @@
-import { Worker } from "bullmq";
+import { Worker, type ConnectionOptions } from "bullmq";
 import { createRedisConnection } from "./queue/redis";
 import { processNotification } from "./worker/process";
 import { prisma } from "./lib/prisma";
@@ -6,11 +6,11 @@ import { logger } from "./lib/logger";
 import { stopReconciler } from "./reconciler";
 import { config } from "./config";
 
-if (config.allowPrivateWebhookTargets && config.nodeEnv !== "production") logger.warn("ALLOW_PRIVATE_WEBHOOK_TARGETS is enabled: private webhook targets are allowed for development");
+if (config.allowPrivateWebhookTargets && config.nodeEnv !== "production") logger.warn({ setting: "ALLOW_PRIVATE_WEBHOOK_TARGETS" }, "Private webhook targets are allowed for development");
 
 const redis = createRedisConnection();
 const worker = new Worker("notificationQueue", processNotification, {
-  connection: redis,
+  connection: redis as unknown as ConnectionOptions,
   settings: {
     backoffStrategy: (attemptsMade) => {
       const base = 2000 * 2 ** (attemptsMade - 1);
