@@ -32,11 +32,11 @@ export function assertPublicWebhookTarget(url: URL): void {
 export function createGuardedLookup(lookup: typeof dns.lookup = dns.lookup) {
   const guarded = (host: string, options: dns.LookupOptions, callback: (error: NodeJS.ErrnoException | null, address: string | dns.LookupAddress[], family?: number) => void) => {
     const done = (error: NodeJS.ErrnoException | null, addresses: dns.LookupAddress[]) => {
-      if (error) return callback(error);
-      if (addresses.some(({ address }) => isBlockedIp(address))) return callback(new SsrfBlockedError());
+      if (error) return callback(error, "", 0);
+      if (addresses.some(({ address }) => isBlockedIp(address))) return callback(new SsrfBlockedError(), "", 0);
       if (options && typeof options === "object" && "all" in options && options.all) return callback(null, addresses);
       const first = addresses[0];
-      if (!first) return callback(Object.assign(new Error("DNS returned no addresses"), { code: "ENOTFOUND" }));
+      if (!first) return callback(Object.assign(new Error("DNS returned no addresses"), { code: "ENOTFOUND" }), "", 0);
       return callback(null, first.address, first.family);
     };
     lookup(host, { all: true, verbatim: true }, done as any);
@@ -53,4 +53,3 @@ export function createGuardedHttpsAgent(url: URL): https.Agent {
   if (ipaddr.isValid(hostname)) return new https.Agent();
   return new https.Agent({ lookup: createGuardedLookup() });
 }
-
