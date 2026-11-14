@@ -8,16 +8,24 @@ datasource db {
 }
 
 model Notification {
-  id        String   @id @default(cuid())
-
+  id        String             @id @default(uuid()) @db.Text
+  type      String             @default("webhook")
   url       String
   payload   Json
-
-  status    String
-
-  retries   Int      @default(0)
-
+  status    NotificationStatus @default(PENDING)
+  retries   Int                @default(0)
   lastError String?
+  httpStatus Int?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
-  createdAt DateTime @default(now())
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+enum NotificationStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
 }
