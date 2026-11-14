@@ -30,27 +30,3 @@ services:
         value: info
       - key: ALLOW_PRIVATE_WEBHOOK_TARGETS
         value: "false"
-
-  - type: worker
-    name: notifyflow-worker
-    runtime: node
-    region: singapore
-    plan: 0.5c-512mb
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api exec prisma generate && pnpm --filter api build
-    startCommand: pnpm --filter api start:worker
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: DATABASE_URL_UNPOOLED
-        sync: false
-      - key: REDIS_URL
-        fromService:
-          type: keyvalue
-          name: notifyflow-redis
-          property: connectionString
-      - key: NODE_ENV
-        value: production
-      - key: LOG_LEVEL
-        value: info
-      - key: ALLOW_PRIVATE_WEBHOOK_TARGETS
-        value: "false"
