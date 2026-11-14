@@ -2,7 +2,7 @@
 
 ## Overview
 
-NotifyFlow is a fault-tolerant event-driven notification delivery system built to demonstrate real-world backend engineering concepts such as asynchronous processing, queue-based architectures, retry mechanisms, failure handling, observability, and distributed system design.
+NotifyFlow is a failure-tolerant event-driven notification delivery system built to demonstrate real-world backend engineering concepts such as asynchronous processing, queue-based architectures, retry mechanisms, failure handling, observability, and distributed system design.
 
 Instead of sending notifications directly from the API, requests are persisted, queued, processed by background workers, retried on failure, and tracked throughout their lifecycle.
 
@@ -301,3 +301,36 @@ getaddrinfo ENOTFOUND abc.invalid
 - Retry 4
 - Mark as FAILED
 
+
+## NotifyFlow v3
+
+The API persists notifications in PostgreSQL and queues delivery in BullMQ/Redis. A single worker performs HTTPS webhook delivery with bounded request/response sizes, no redirects, DNS-time SSRF protection, and retry classification. A worker-only reconciler repairs stale queue/database state. Delivery is at-least-once: receivers should deduplicate using the `Idempotency-Key` header containing the notification ID.
+
+### Configuration
+
+Copy `apps/api/.env.example` and `apps/web/.env.example` to local env files and fill in values. API variables: `PORT`, `DATABASE_URL`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, `REDIS_TLS`, `NODE_ENV`, `ALLOW_PRIVATE_WEBHOOK_TARGETS`, and `LOG_LEVEL`. Frontend: `VITE_API_URL`. Keep credentials in environment variables or a secret manager. For local webhook development, [webhook.site](https://webhook.site) is a recommended receiver. The private-target development toggle is only honored outside production.
+
+### Local development
+
+Run `docker compose up -d postgres redis` from the repository root, then install dependencies with `pnpm install --frozen-lockfile`. Run the API with `pnpm --filter api dev`, the worker with `pnpm --filter api worker`, and the frontend with `pnpm --filter web dev`. Apply migrations with `pnpm --filter api exec prisma migrate deploy`.
+
+### API endpoints
+
+- `POST /notifications` creates a webhook notification from `{ "type": "webhook", "url": "https://…", "payload": {} }`.
+- `GET /notifications?page=1&limit=20&status=PENDING` returns a paginated notification list.
+- `GET /notifications/:id` returns one notification.
+- `GET /metrics` returns queue gauges and database status totals.
+- `GET /health` reports API health.
+
+### AWS deployment notes
+
+Enforce IMDSv2 on the EC2 instance. Use an Elastic IP so the Redis Cloud allowlist stays valid. Redis Cloud should use TLS and the `noeviction` policy. Supply RDS and Redis credentials through environment variables or SSM Parameter Store. Grant the EC2 IAM role access to SSM only.
+
+### Known limitations
+
+- The create endpoint has no inbound idempotency key.
+- Webhook requests do not have HMAC signatures.
+- The API has no authentication. Anyone who can reach it can ask the server to POST to arbitrary public HTTPS URLs; SSRF protection limits targets to public addresses.
+- Outbound rate limiting and CloudWatch integration are not implemented.
+- SSRF protection has not been tested against live bypass attempts beyond the unit tests.
+- The system has not been tested with failure injection.
